@@ -1,0 +1,54 @@
+{
+  "packageName": "io.pickmeup.automotive",
+  "appDescription": "PickMeUp notifies a saved pickup recipient of the driver's expected arrival, starting navigation to their saved meeting place and preparing a live vehicle-location and estimated-arrival link. Text messages follow the saved immediate-send setting. It also reports recipient readiness and ends pickup sharing.",
+  "invokeWord": "픽미업",
+  "version": "0.3.7",
+  "actionCalls": [
+    {
+      "type": "function",
+      "function": {
+        "name": "START_PICKUP_SHARE",
+        "description": "Notify a saved pickup recipient of the driver's expected arrival by starting navigation to their default meeting place and preparing a live location and estimated-arrival link once guidance is confirmed. If the saved immediate-send setting is enabled, request text delivery for the newly started share without another confirmation; otherwise leave it awaiting explicit approval in the app. If no meeting place is saved, use the current navigation destination.",
+        "component": "activity",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "recipientAlias": {
+              "type": "string",
+              "description": "The recipient's name or alias in the application's saved pickup contacts."
+            }
+          },
+          "required": [
+            "recipientAlias"
+          ]
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "GET_PICKUP_STATUS",
+        "description": "Report the active pickup, latest estimated arrival freshness, and recipient readiness.",
+        "component": "service",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "STOP_PICKUP_SHARE",
+        "description": "End the active pickup share and revoke its recipient access.",
+        "component": "service",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      }
+    }
+  ]
+}

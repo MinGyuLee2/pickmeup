@@ -1,0 +1,11 @@
+# Preserve the Windows Gradle wrapper line endings on checkout.
+*.bat text eol=crlf
+# Keep upstream font license text intact, including its original whitespace.
+android/app/src/main/assets/licenses/asta-sans-OFL.txt -whitespace
+web/public/fonts/OFL.txt -whitespace
+# Runtime binary assets must not receive line-ending conversion.
+*.png -text
+*.ttf -text
+*.woff2 -text
+*.wav -text
+*.jar -text

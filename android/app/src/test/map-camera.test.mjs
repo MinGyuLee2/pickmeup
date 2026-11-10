@@ -1,0 +1,10 @@
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {runInNewContext} from 'node:vm';
+const sandbox={};runInNewContext(readFileSync(new URL('../main/assets/map/camera.js',import.meta.url),'utf8'),sandbox);
+const Camera=sandbox.PickupMapCamera;
+test('widens immediately when either person would leave the frame',()=>{const c=new Camera();assert.equal(c.choose(5,0),5);assert.equal(c.choose(8,1000),8);});
+test('small GPS changes do not bounce the zoom in and out',()=>{const c=new Camera();c.choose(7,0);assert.equal(c.choose(6,1000),7);assert.equal(c.choose(7,3000),7);assert.equal(c.choose(6,4000),7);assert.equal(c.choose(6,18999),7);assert.equal(c.choose(6,19000),6);});
+test('stationary nearby people can zoom in after the stable interval',()=>{const c=new Camera();c.choose(8,0);c.choose(4,1000);assert.equal(c.due(15999),false);assert.equal(c.due(16000),true);assert.equal(c.choose(4,16000),4);assert.equal(c.due(30000),false);});
+test('coincident positions do not zoom excessively',()=>{const c=new Camera();assert.equal(c.choose(1,0),3);});

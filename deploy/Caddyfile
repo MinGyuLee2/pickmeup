@@ -1,0 +1,28 @@
+{$PUBLIC_HOST} {
+	# Caddy manages the public certificate; persist /data for renewals.
+	header {
+		Referrer-Policy "no-referrer"
+		X-Content-Type-Options "nosniff"
+		Permissions-Policy "camera=(), microphone=(), geolocation=()"
+		X-Frame-Options "DENY"
+	}
+	@api path /api /api/*
+	handle @api {
+		uri strip_prefix /api
+		reverse_proxy api:4310 {
+			# Flush each SSE event; no request retries that could replay a write.
+			flush_interval -1
+			transport http {
+				dial_timeout 3s
+				response_header_timeout 10s
+			}
+		}
+	}
+	handle {
+		root * /srv
+		try_files {path} /index.html
+		header Cache-Control "no-store"
+		file_server
+	}
+	# Access logs deliberately omitted: pairing URLs and tokens are private.
+}

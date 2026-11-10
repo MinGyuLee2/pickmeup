@@ -1,0 +1,96 @@
+name: pickmeup
+x-runtime: &runtime
+  image: pickmeup-api:local
+  build:
+    context: ..
+    dockerfile: deploy/Dockerfile.api
+  restart: unless-stopped
+  init: true
+  read_only: true
+  tmpfs: [/tmp]
+  cap_drop: [ALL]
+  security_opt: [no-new-privileges:true]
+  environment: &environment
+    NODE_ENV: production
+    HOST: 0.0.0.0
+    PUBLIC_ORIGIN: https://${PUBLIC_HOST:?Set PUBLIC_HOST to your public DNS name}
+    SMS_MODE: sens
+    TRUST_PROXY_HOPS: '1'
+    APP_SECRET_FILE: /run/secrets/app_secret
+    DB_PASSWORD_FILE: /run/secrets/db_password
+    SENS_SERVICE_ID_FILE: /run/secrets/sens_service_id
+    SENS_ACCESS_KEY_FILE: /run/secrets/sens_access_key
+    SENS_SECRET_KEY_FILE: /run/secrets/sens_secret_key
+    SENS_FROM_FILE: /run/secrets/sens_from
+  secrets: [app_secret, db_password, sens_service_id, sens_access_key, sens_secret_key, sens_from]
+  depends_on:
+    db: {condition: service_healthy}
+  logging:
+    driver: json-file
+    options: {max-size: 10m, max-file: '3'}
+services:
+  db:
+    image: postgres:17-bookworm
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: pickmeup
+      POSTGRES_USER: pickmeup
+      POSTGRES_PASSWORD_FILE: /run/secrets/db_password
+    secrets: [db_password]
+    volumes: [postgres_data:/var/lib/postgresql/data]
+    healthcheck:
+      test: [CMD-SHELL, 'pg_isready -U pickmeup -d pickmeup']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    logging:
+      driver: json-file
+      options: {max-size: 10m, max-file: '3'}
+  api:
+    <<: *runtime
+    healthcheck:
+      test: [CMD, node, -e, "fetch('http://127.0.0.1:4310/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 4s
+      retries: 3
+      start_period: 30s
+  worker:
+    <<: *runtime
+    command: [node, run.mjs, worker]
+    environment:
+      <<: *environment
+      WORKER_HEALTH_FILE: /tmp/worker-health
+    healthcheck:
+      test: [CMD, node, -e, "const fs=require('node:fs');process.exit(Date.now()-fs.statSync('/tmp/worker-health').mtimeMs<15000?0:1)"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 30s
+  web:
+    image: pickmeup-web:local
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.web
+      args:
+        VITE_KAKAO_MAP_KEY: ${VITE_KAKAO_MAP_KEY:?Set the domain-restricted Kakao JavaScript key}
+    restart: unless-stopped
+    environment:
+      PUBLIC_HOST: ${PUBLIC_HOST:?Set PUBLIC_HOST}
+    ports: ['80:80', '443:443', '443:443/udp']
+    volumes: [caddy_data:/data, caddy_config:/config]
+    depends_on:
+      api: {condition: service_healthy}
+    logging:
+      driver: json-file
+      options: {max-size: 10m, max-file: '3'}
+secrets:
+  app_secret: {file: '${SECRETS_DIR:?Set SECRETS_DIR}/app_secret'}
+  db_password: {file: '${SECRETS_DIR:?Set SECRETS_DIR}/db_password'}
+  sens_service_id: {file: '${SECRETS_DIR:?Set SECRETS_DIR}/sens_service_id'}
+  sens_access_key: {file: '${SECRETS_DIR:?Set SECRETS_DIR}/sens_access_key'}
+  sens_secret_key: {file: '${SECRETS_DIR:?Set SECRETS_DIR}/sens_secret_key'}
+  sens_from: {file: '${SECRETS_DIR:?Set SECRETS_DIR}/sens_from'}
+volumes:
+  postgres_data:
+  caddy_data:
+  caddy_config:

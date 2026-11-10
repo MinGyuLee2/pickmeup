@@ -1,0 +1,10 @@
+# Local disposable verification only. API/worker have no external egress; SENS cannot be reached.
+name: pickmeup-smoke
+services:
+  web:
+    ports: !override ['127.0.0.1:18443:18443']
+    networks: [default, edge]
+networks:
+  edge: {}
+  default:
+    internal: true

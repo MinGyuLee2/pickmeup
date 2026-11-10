@@ -1,0 +1,21 @@
+{
+  "name": "@pickmeup/api",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "npm run build && npm run start",
+    "build": "tsc -p tsconfig.json",
+    "start": "node --env-file=../.env dist/index.js",
+    "test": "npm run build && node --env-file=../.env --test dist/*.test.js",
+    "worker": "node --env-file=../.env dist/worker.js"
+  },
+  "dependencies": {
+    "fastify": "^5.12.8",
+    "iconv-lite": "^0.7.3",
+    "pg": "^8.23.1",
+    "web-push": "^4.0.0"
+  },
+  "devDependencies": {
+    "@types/web-push": "^3.6.4"
+  }
+}

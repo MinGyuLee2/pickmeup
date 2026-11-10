@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-feature android:name="android.hardware.type.automotive" android:required="true" />
+    <uses-permission android:name="pleos.car.permission.NAVI_ROUTE" />
+    <uses-permission android:name="pleos.car.permission.NAVI_ROUTE_SEARCH" />
+    <uses-permission android:name="pleos.car.permission.NAVI_CUSTOM_MAP" />
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.SEND" />
+            <data android:mimeType="text/plain" />
+        </intent>
+        <package android:name="${gleoCallerPackage}" />
+        <intent>
+            <action android:name="android.intent.action.PICK" />
+            <data android:mimeType="vnd.android.cursor.dir/phone_v2" />
+        </intent>
+    </queries>
+    <application android:name=".PickMeUpApplication" android:label="픽미업" android:icon="@drawable/ic_pickmeup" android:roundIcon="@drawable/ic_pickmeup" android:allowBackup="false" android:dataExtractionRules="@xml/data_extraction_rules" android:supportsRtl="true" android:usesCleartextTraffic="false"
+        android:theme="@android:style/Theme.Material.NoActionBar">
+        <uses-library android:name="android.car" android:required="false" />
+        <activity android:name=".MainActivity" android:exported="true">
+            <meta-data android:name="distractionOptimized" android:value="true" />
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+        <activity android:name=".gleo.VoiceActionActivity" android:exported="true"
+            android:permission="ai.umos.gleo.permission.APP_ACTION" android:excludeFromRecents="true"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|uiMode">
+            <meta-data android:name="distractionOptimized" android:value="true" />
+            <intent-filter>
+                <action android:name="START_PICKUP_SHARE" />
+                <action android:name="${applicationId}.START_PICKUP_SHARE" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
+        <receiver android:name=".gleo.GleoActionReceiver" android:exported="true" android:permission="ai.umos.gleo.permission.APP_ACTION">
+            <intent-filter>
+                <action android:name="START_PICKUP_SHARE" />
+                <action android:name="GET_PICKUP_STATUS" />
+                <action android:name="STOP_PICKUP_SHARE" />
+                <action android:name="${applicationId}.START_PICKUP_SHARE" />
+                <action android:name="${applicationId}.GET_PICKUP_STATUS" />
+                <action android:name="${applicationId}.STOP_PICKUP_SHARE" />
+            </intent-filter>
+        </receiver>
+        <service android:name=".pickup.PickupSyncService" android:exported="false" android:foregroundServiceType="dataSync" />
+    </application>
+</manifest>

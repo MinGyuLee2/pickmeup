@@ -1,0 +1,23 @@
+{
+  "name": "pickmeup",
+  "private": true,
+  "workspaces": [
+    "api",
+    "web"
+  ],
+  "engines": {
+    "node": ">=22.12 <23"
+  },
+  "scripts": {
+    "dev:api": "npm run dev --workspace api",
+    "dev:web": "npm run dev --workspace web",
+    "dev:worker": "npm run build --workspace api && npm run worker --workspace api",
+    "build": "npm run build --workspaces"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.5",
+    "@types/pg": "^8.23.1",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2"
+  }
+}
