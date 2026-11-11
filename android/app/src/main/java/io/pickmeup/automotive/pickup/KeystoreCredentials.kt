@@ -13,9 +13,9 @@ import javax.crypto.SecretKey
 import javax.crypto.spec.GCMParameterSpec
 
 /** Device credentials and unfinished operations stay encrypted and bound to this server. */
-class KeystoreCredentials(context: Context) : CredentialStore {
-    private val preferences = context.getSharedPreferences("pickmeup-device", Context.MODE_PRIVATE)
-    private val alias = "pickmeup-device-v1"
+class KeystoreCredentials(context: Context, preferenceName: String = "pickmeup-device",
+    private val alias: String = "pickmeup-device-v1") : CredentialStore {
+    private val preferences = context.getSharedPreferences(preferenceName, Context.MODE_PRIVATE)
     private fun key(): SecretKey {
         val store = KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
         (store.getKey(alias, null) as? SecretKey)?.let { return it }

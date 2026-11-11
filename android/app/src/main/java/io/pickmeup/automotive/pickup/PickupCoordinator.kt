@@ -29,7 +29,9 @@ class PickupCoordinator(
     private val elapsedNow: () -> Long,
     private val wallNow: () -> Long = System::currentTimeMillis,
     private val routeTo: suspend (Destination) -> Unit = { throw ApiFailure(503,"ROUTING_UNAVAILABLE","길안내 연결을 확인해 주세요.") },
+    private val syncIntervalMs: Long = 5_000,
 ) {
+    init { require(syncIntervalMs in 1_000..60_000) }
     private val initialPaired=credentials.read()!=null
     private val initialEnding=credentials.pendingEnd()!=null
     private val initialStarting=credentials.pendingStart()!=null
@@ -490,7 +492,7 @@ class PickupCoordinator(
     }
     private fun startProcessing() {
         if(syncJob?.isActive!=true)syncJob=scope.launch {
-            while(isActive) { syncOnce();delay(5_000) }
+            while(isActive) { syncOnce();delay(syncIntervalMs) }
         }
         if(streamJob?.isActive!=true) {
             val generation=workGeneration

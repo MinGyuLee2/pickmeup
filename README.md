@@ -2,7 +2,13 @@
 
 차량에서 만날 장소와 상대를 선택해 길안내와 도착 알림을 시작하고, 상대는 문자 링크로 도착 시간과 차량 위치를 확인하는 픽업 서비스입니다.
 
-현재 차량 앱 버전은 **0.3.41**입니다. Android Automotive/Pleos 차량 앱, Fastify API, React 수신자 웹으로 구성됩니다.
+현재 차량 앱 버전은 **0.3.42**입니다. Android Automotive/Pleos 차량 앱, Fastify API, React 수신자 웹으로 구성됩니다.
+
+## 공모전 제출 APK
+
+[이민규_픽미업_release.apk](apk/이민규_픽미업_release.apk) · 버전 0.3.42 / code 45 · 서명된 release
+
+실행 방법, 테스트 환경, 서버 의존성과 검증 범위는 [APK 안내](apk/README.md)에 정리했습니다. 파일 무결성은 [SHA256SUMS](apk/SHA256SUMS)로 확인할 수 있습니다. 제출 APK에는 촬영용 가상 주행 재생기와 debug 제어 Receiver가 포함되지 않습니다.
 
 ## 주요 기능
 
@@ -76,6 +82,26 @@ cd android
 ```
 
 API 테스트는 별도 PostgreSQL 스키마를 만들어 사용한 뒤 정리합니다. 자동 테스트·에뮬레이터·브라우저 검증과 실제 휴대전화·실차 주행 검증은 구분합니다. 실제 문자 전달, 차량 SDK 권한과 주행 환경은 별도 검증이 필요합니다.
+
+## 촬영용 경로 재생
+
+기존 에뮬레이터·Gleo 호출자 설정과 로컬 오디오 도구가 준비된 개발 환경에서 별도 `filming` 빌드를 사용할 수 있습니다. 이 빌드는 원래 계정 설정을 읽지 않고, 독립된 암호화 저장소와 DB 스키마에서 가상 상대·주행을 사용합니다. 일반 debug/release에는 재생기와 촬영 제어 Receiver가 포함되지 않습니다.
+
+```sh
+scripts/filming-demo.sh prepare
+scripts/filming-demo.sh start
+scripts/filming-demo.sh install
+```
+
+PC 촬영 콘솔은 `http://127.0.0.1:5187`입니다. 기존에 설정한 HTTPS 도메인의 `/filming/`에서 수신자 화면을 제공하며, 일반 웹과 API 경로는 유지합니다. 실제 문자 발송기는 실행하지 않습니다. 녹음한 명령은 실제 Gleo ASR·서명 보호 액션을 거치며, Intent 직접 호출을 음성 성공으로 대체하지 않습니다.
+
+```sh
+node scripts/filming-smoke.mjs
+scripts/filming-demo.sh stop
+scripts/filming-demo.sh restore
+```
+
+`restore`는 일반 APK를 데이터 보존 업데이트하고 원래 계정·차량 저장소로 돌아갑니다. 휴대전화 재인증이나 설정 백업 덮어쓰기는 하지 않습니다.
 
 ## 관련 링크
 

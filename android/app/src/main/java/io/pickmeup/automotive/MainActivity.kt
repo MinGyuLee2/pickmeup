@@ -297,7 +297,15 @@ class MainActivity : Activity() {
             actionDivider=View(this@MainActivity).apply {setBackgroundColor(stroke)}
             addView(actionDivider,LinearLayout.LayoutParams(-1,dp(1)));addView(actions)
         }
-        setContentView(root)
+        if(BuildConfig.FILMING_MODE) {
+            setContentView(FrameLayout(this).apply {
+                addView(root,FrameLayout.LayoutParams(-1,-1))
+                addView(TextView(this@MainActivity).apply {
+                    text="시연 · 가상 주행";textSize=14f;setTextColor(muted)
+                    setPadding(dp(12),dp(5),dp(12),dp(5));setBackgroundColor(canvas)
+                },FrameLayout.LayoutParams(-2,-2,Gravity.TOP or Gravity.END))
+            })
+        } else setContentView(root)
         uiScope.launch { driving.state.collect {
             policy=it
             if(it.known && it.restricted && pendingPlaceSearch!=null) {

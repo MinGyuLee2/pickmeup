@@ -30,11 +30,11 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
 /** SDK values only; reception time is not presented as the GPS fix time. */
-class NaviDataSource(context: Context, private val scope: CoroutineScope) {
+class NaviDataSource(context: Context, private val scope: CoroutineScope) : NavigationSource {
     private val applicationContext=context.applicationContext
     private val helper = NaviHelper(context.applicationContext)
     private val mutable = MutableStateFlow(NavigationState())
-    val state = mutable.asStateFlow()
+    override val state = mutable.asStateFlow()
     private var polling: Job? = null
     private var generation = 0L
     private var preparingRoute = false
@@ -104,7 +104,7 @@ class NaviDataSource(context: Context, private val scope: CoroutineScope) {
         } }
     }
 
-    fun start() {
+    override fun start() {
         if (mutable.value.connection in setOf(NavigationConnection.CONNECTING, NavigationConnection.CONNECTED)) return
         if(listener!=null)close()
         val session=++generation
@@ -126,11 +126,11 @@ class NaviDataSource(context: Context, private val scope: CoroutineScope) {
         )
     }
 
-    fun requestRecentDestinations() {
+    override fun requestRecentDestinations() {
         if(mutable.value.connection==NavigationConnection.CONNECTED && !preparingRoute)
             runCatching {helper.getRecentDestinationInfo()}
     }
-    suspend fun openPlaceSelection() {
+    override suspend fun openPlaceSelection() {
         if(applicationContext.checkSelfPermission("pleos.car.permission.NAVI_CUSTOM_MAP")!=android.content.pm.PackageManager.PERMISSION_GRANTED)
             throw ApiFailure(503,"NAVIGATION_SEARCH_UNAVAILABLE","이 차량에서는 장소 검색 화면을 열 수 없어요. 순정 내비에서 직접 목적지를 설정한 뒤 선택해 주세요.")
         if(mutable.value.connection!=NavigationConnection.CONNECTED)
@@ -138,12 +138,12 @@ class NaviDataSource(context: Context, private val scope: CoroutineScope) {
         helper.requestNavigationScreen(NavigationScreenRequest.Foreground)
         delay(500)
     }
-    fun requestSnapshot() {
+    override fun requestSnapshot() {
         if (mutable.value.connection != NavigationConnection.CONNECTED) return
         runCatching { helper.getCurrentLocationInfo(); helper.getDestinationInfo();helper.getRouteStateInfo() }
             .onFailure { recordError(it.message ?: "내비 정보 요청 실패") }
     }
-    suspend fun prepareRoute(place: Destination) {
+    override suspend fun prepareRoute(place: Destination) {
         if(mutable.value.connection!=NavigationConnection.CONNECTED)
             throw ApiFailure(409,"NAVIGATION_UNAVAILABLE","내비 연결 후 다시 시작해 주세요.")
         val before=mutable.value
@@ -177,7 +177,7 @@ class NaviDataSource(context: Context, private val scope: CoroutineScope) {
         if (changed) Log.i(TAG, "NAVI_ROUTE_CHANGED")
     }
     private fun recordError(message: String) { mutable.value = mutable.value.copy(error = message) }
-    fun close() {
+    override fun close() {
         generation++
         polling?.cancel();polling=null
         listener?.let(helper::removeListener);listener=null

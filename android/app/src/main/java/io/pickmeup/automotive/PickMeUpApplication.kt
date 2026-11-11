@@ -10,6 +10,7 @@ import io.pickmeup.automotive.gleo.awaitVoiceNavigationConnection
 import io.pickmeup.automotive.pickup.Pickup
 import io.pickmeup.automotive.pickup.ApiFailure
 import io.pickmeup.automotive.navigation.NaviDataSource
+import io.pickmeup.automotive.navigation.NavigationSource
 import io.pickmeup.automotive.pickup.HttpPickupGateway
 import io.pickmeup.automotive.pickup.KeystoreCredentials
 import io.pickmeup.automotive.pickup.PickupCoordinator
@@ -18,18 +19,39 @@ import io.pickmeup.automotive.pickup.SyncLifetime
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 
 class PickMeUpApplication : Application() {
     val appScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
-    val navigation by lazy { NaviDataSource(this, appScope) }
+    val navigation: NavigationSource by lazy {
+        if(BuildConfig.FILMING_MODE) {
+            check(BuildConfig.DEBUG)
+            Class.forName("io.pickmeup.automotive.filming.FilmingNavigation")
+                .getConstructor(android.content.Context::class.java,CoroutineScope::class.java)
+                .newInstance(this,appScope) as NavigationSource
+        } else NaviDataSource(this,appScope)
+    }
     private var uiVisible=false
     private var syncRequested=false
     private var voiceNavigationUsers=0
-    private val messagePreferences by lazy {getSharedPreferences("pickmeup-ui",MODE_PRIVATE)}
+    private val messagePreferences by lazy {getSharedPreferences(if(BuildConfig.FILMING_MODE)"pickmeup-filming-ui" else "pickmeup-ui",MODE_PRIVATE)}
     var immediateMessage: Boolean
-        get()=messagePreferences.getBoolean("immediateMessage",false)
+        get()=messagePreferences.getBoolean("immediateMessage",BuildConfig.FILMING_MODE)
         set(value){messagePreferences.edit().putBoolean("immediateMessage",value).apply()}
-    private val credentials by lazy { KeystoreCredentials(this) }
+    private val credentials by lazy {
+        if(BuildConfig.FILMING_MODE)KeystoreCredentials(this,"pickmeup-filming-device","pickmeup-filming-device-v1")
+        else KeystoreCredentials(this)
+    }
+    override fun onCreate() {
+        super.onCreate()
+        if(BuildConfig.FILMING_MODE)appScope.launch {
+            navigation.start()
+            Class.forName("io.pickmeup.automotive.filming.FilmingNavigation")
+                .getMethod("watchPickup",PickMeUpApplication::class.java).invoke(navigation,this@PickMeUpApplication)
+            coordinator.startGuest()
+            coordinator.resume()
+        }
+    }
     val coordinator by lazy {
         PickupCoordinator(appScope,navigation.state,HttpPickupGateway(credentials),credentials,
             object: SyncLifetime {
@@ -47,7 +69,7 @@ class PickMeUpApplication : Application() {
                     stopService(Intent(this@PickMeUpApplication,PickupSyncService::class.java))
                     closeNavigationIfIdle()
                 }
-            },SystemClock::elapsedRealtime,routeTo=navigation::prepareRoute)
+            },SystemClock::elapsedRealtime,routeTo=navigation::prepareRoute,syncIntervalMs=if(BuildConfig.FILMING_MODE)1_000 else 5_000)
     }
     suspend fun startSavedPickup(contactId: String) {
         voiceNavigationUsers++

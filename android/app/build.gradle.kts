@@ -39,8 +39,9 @@ android {
         applicationId = "io.pickmeup.automotive"
         minSdk = 28
         targetSdk = 34
-        versionCode = 44
-        versionName = "0.3.41"
+        versionCode = 45
+        versionName = "0.3.42"
+        buildConfigField("boolean","FILMING_MODE","false")
         buildConfigField("String","KAKAO_MAP_JS_KEY","\"$mapKey\"")
         buildConfigField("String","GLEO_CALLER_PACKAGE","\"$gleoPackage\"")
         buildConfigField("String","GLEO_CALLER_SHA256","\"$gleoFingerprint\"")
@@ -62,6 +63,17 @@ android {
             buildConfigField("String", "API_BASE_URL", "\"$endpoint\"")
             signingConfig=signingConfigs.findByName("pickmeupRelease")
         }
+        create("filming") {
+            initWith(getByName("debug"))
+            matchingFallbacks += listOf("debug")
+            versionNameSuffix = "-filming"
+            buildConfigField("boolean","FILMING_MODE","true")
+            buildConfigField("String","API_BASE_URL","\"http://127.0.0.1:4311\"")
+        }
+    }
+    sourceSets.getByName("filming") {
+        java.srcDir("src/debug/java")
+        res.srcDir("src/debug/res")
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
@@ -101,6 +113,13 @@ val stageDebugApk by tasks.registering(Copy::class) {
     into(project.file("build/outputs/apk/debug"))
 }
 tasks.matching { it.name == "assembleDebug" }.configureEach { finalizedBy(stageDebugApk) }
+
+val stageFilmingApk by tasks.registering(Copy::class) {
+    dependsOn("packageFilming")
+    from(layout.buildDirectory.dir("outputs/apk/filming"))
+    into(project.file("build/outputs/apk/filming"))
+}
+tasks.matching { it.name == "assembleFilming" }.configureEach { finalizedBy(stageFilmingApk) }
 
 val stageReleaseApk by tasks.registering(Copy::class) {
     dependsOn("assembleRelease")

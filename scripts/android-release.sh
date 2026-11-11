@@ -9,7 +9,7 @@ fi
 : "${PICKMEUP_GLEO_CALLER_PACKAGE:?Set the approved Gleo caller package}"
 : "${PICKMEUP_GLEO_CALLER_SHA256:?Set the approved Gleo caller fingerprint}"
 cd "$ROOT/android"
-"$ROOT/scripts/with-env.sh" ./gradlew verifyReleaseConfiguration stageReleaseApk lintRelease \
+"$ROOT/scripts/with-env.sh" ./gradlew verifyReleaseConfiguration testReleaseUnitTest stageReleaseApk lintRelease \
   "-PpickmeupApiBaseUrl=$1" \
   "-PpickmeupGleoCallerPackage=$PICKMEUP_GLEO_CALLER_PACKAGE" \
   "-PpickmeupGleoCallerSha256=$PICKMEUP_GLEO_CALLER_SHA256"

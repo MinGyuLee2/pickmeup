@@ -17,7 +17,8 @@ class HttpPickupGateway(private val credentials: CredentialStore) : PickupGatewa
     private val base = BuildConfig.API_BASE_URL.trimEnd('/')
     @Volatile private var eventConnection: HttpURLConnection? = null
     private fun connection(path: String, authenticated: Boolean = true): HttpURLConnection {
-        require(base.startsWith("https://") || (BuildConfig.DEBUG && base == "http://127.0.0.1:4310")) {
+        require(base.startsWith("https://") || (BuildConfig.DEBUG &&
+            (base == "http://127.0.0.1:4310" || (BuildConfig.FILMING_MODE && base == "http://127.0.0.1:4311")))) {
             "서버 연결 주소가 준비되지 않았습니다."
         }
         return (URL(base + path).openConnection() as HttpURLConnection).apply {

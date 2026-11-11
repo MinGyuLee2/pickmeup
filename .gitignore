@@ -67,3 +67,10 @@
 /SESSION_HANDOFF.txt
 /IMPLEMENTATION_PLAN.md
 /.local/
+
+# The contest requires this exact signed release APK under apk/.
+!/apk/
+/apk/*
+!/apk/README.md
+!/apk/SHA256SUMS
+!/apk/이민규_픽미업_release.apk
