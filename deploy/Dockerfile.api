@@ -15,6 +15,7 @@ COPY --from=build --chown=node:node /app/api/package.json ./api/package.json
 COPY --from=build --chown=node:node /app/api/dist ./api/dist
 COPY --from=build --chown=node:node /app/api/migrations ./api/migrations
 COPY --chown=node:node deploy/run.mjs ./run.mjs
+COPY --chown=node:node deploy/runtime-env.mjs ./runtime-env.mjs
 USER node
 EXPOSE 4310
 CMD ["node", "run.mjs", "api"]

@@ -7,5 +7,6 @@ const pool=new pg.Pool({connectionString:process.env.DATABASE_URL,connectionTime
 const worker=new PushWorker(pool,process.env.APP_SECRET,process.env.SMS_MODE??'solapi',async(s,p,topic)=>{await webpush.sendNotification(s,JSON.stringify(p),{TTL:60,urgency:'high',topic,timeout:5000});});
 let stopping=false;for(const signal of ['SIGINT','SIGTERM'] as const)process.once(signal,()=>{stopping=true;});
 console.log('PickMeUp Web Push worker ready; SMS dispatch disabled in this process');
-try {while(!stopping){try{await worker.runOnce();await writeFile('.local/web-push-worker.health',String(Date.now()),{mode:0o600});}catch{console.error('Web Push cycle failed; no endpoint or payload logged');}if(!stopping)await setTimeout(1000);}}
-finally{await rm('.local/web-push-worker.health',{force:true});await pool.end();}
+const healthFile=process.env.WORKER_HEALTH_FILE??'.local/web-push-worker.health';
+try {while(!stopping){try{await worker.runOnce();await writeFile(healthFile,String(Date.now()),{mode:0o600});}catch{console.error('Web Push cycle failed; no endpoint or payload logged');}if(!stopping)await setTimeout(1000);}}
+finally{await rm(healthFile,{force:true});await pool.end();}

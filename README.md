@@ -105,5 +105,7 @@ scripts/filming-demo.sh restore
 
 ## 관련 링크
 
+AWS 서울용 설정과 기존 DB·키 보존 절차는 [배포 안내](deploy/aws/README.md)에 있습니다. 문자·푸시 worker는 기본으로 시작하지 않습니다.
+
 - [랜딩 페이지](https://mingyulee2.github.io/pickmeup-landing/)
 - [랜딩 페이지 소스](https://github.com/MinGyuLee2/pickmeup-landing)

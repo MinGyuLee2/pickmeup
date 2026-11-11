@@ -26,6 +26,7 @@
 !deploy/Dockerfile.api
 !deploy/Dockerfile.web
 !deploy/run.mjs
+!deploy/runtime-env.mjs
 !deploy/Caddyfile
 !web/public/arrival-notifications.js
 !web/public/manifest.webmanifest

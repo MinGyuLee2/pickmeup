@@ -3,7 +3,7 @@
 	header {
 		Referrer-Policy "no-referrer"
 		X-Content-Type-Options "nosniff"
-		Permissions-Policy "camera=(), microphone=(), geolocation=()"
+		Permissions-Policy "camera=(), microphone=(), geolocation=(self)"
 		X-Frame-Options "DENY"
 	}
 	@api path /api /api/*
