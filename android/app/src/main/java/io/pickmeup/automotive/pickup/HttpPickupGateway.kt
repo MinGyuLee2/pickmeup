@@ -61,7 +61,14 @@ class HttpPickupGateway(private val credentials: CredentialStore) : PickupGatewa
         val json=JSONObject(request("/vehicles/guest","POST",JSONObject().put("installationKey",installationKey),authenticated=false))
         return DeviceCredentials(json.getString("vehicleId"),json.getString("deviceToken"),json.getBoolean("accountLinked"))
     }
-    override suspend fun accountLinked()=JSONObject(request("/vehicle/profile")).getBoolean("accountLinked")
+    override suspend fun accountLinked(): Boolean {
+        val profile=JSONObject(request("/vehicle/profile"))
+        val vehicleId=profile.getString("vehicleId")
+        if(vehicleId!=credentials.read()?.vehicleId)
+            throw ApiFailure(502,"VEHICLE_MISMATCH","차량 연결 정보를 확인할 수 없습니다.")
+        credentials.confirmServerIdentity(vehicleId)
+        return profile.getBoolean("accountLinked")
+    }
     override suspend fun cancelOnboarding(pairing: Pairing) {request("/onboarding/${pairing.id}","DELETE",authenticated=false,pairingSecret=pairing.deviceSecret)}
     override suspend fun startOnboarding(phone: String): Pairing {
         val json=JSONObject(request("/onboarding/start","POST",JSONObject().put("phone",phone),authenticated=credentials.read()!=null))

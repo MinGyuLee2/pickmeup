@@ -49,6 +49,7 @@ data class VehicleUiState(val paired: Boolean = false, val pairing: Pairing? = n
     val messageNoticePickupId: String? = null, val accountLinked: Boolean=true)
 
 interface CredentialStore {
+    fun confirmServerIdentity(vehicleId: String) {}
     fun guestInstallationKey(): String? = null
     fun saveGuestInstallationKey(value: String) {}
     fun pendingPairing(): Pairing? = null

@@ -14,7 +14,9 @@ import javax.crypto.spec.GCMParameterSpec
 
 /** Device credentials and unfinished operations stay encrypted and bound to this server. */
 class KeystoreCredentials(context: Context, preferenceName: String = "pickmeup-device",
-    private val alias: String = "pickmeup-device-v1") : CredentialStore {
+    private val alias: String = "pickmeup-device-v1",
+    private val server: String = BuildConfig.API_BASE_URL,
+    private val debug: Boolean = BuildConfig.DEBUG && !BuildConfig.FILMING_MODE) : CredentialStore {
     private val preferences = context.getSharedPreferences(preferenceName, Context.MODE_PRIVATE)
     private fun key(): SecretKey {
         val store = KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
@@ -30,15 +32,25 @@ class KeystoreCredentials(context: Context, preferenceName: String = "pickmeup-d
         val cipher = Cipher.getInstance("AES/GCM/NoPadding")
         cipher.init(Cipher.DECRYPT_MODE, key(), GCMParameterSpec(128, data.copyOfRange(0,12)))
         val value = JSONObject(String(cipher.doFinal(data.copyOfRange(12,data.size)), Charsets.UTF_8))
-        if (value.optString("server") == BuildConfig.API_BASE_URL) value else JSONObject()
+        if (CredentialServerPolicy.canRead(value.optString("server"),server,debug)) value else JSONObject()
     }.getOrElse { JSONObject() }
-    private fun writeRecord(record: JSONObject) {
-        record.put("server", BuildConfig.API_BASE_URL)
+    private fun writeRecord(record: JSONObject, confirmedMigration: Boolean = false) {
+        val oldServer=record.optString("server")
+        // Retain the old binding through offline requests and failed authentication.
+        record.put("server",if(!confirmedMigration && CredentialServerPolicy.canMigrate(oldServer,server,debug))oldServer else server)
         val cipher = Cipher.getInstance("AES/GCM/NoPadding").apply { init(Cipher.ENCRYPT_MODE,key()) }
         val encrypted = cipher.iv + cipher.doFinal(record.toString().toByteArray(Charsets.UTF_8))
-        check(preferences.edit().putString("record",Base64.encodeToString(encrypted,Base64.NO_WRAP)).commit()) {
+        val editor=preferences.edit()
+        if(confirmedMigration && !preferences.contains("previous-server-record"))
+            editor.putString("previous-server-record",preferences.getString("record",null))
+        check(editor.putString("record",Base64.encodeToString(encrypted,Base64.NO_WRAP)).commit()) {
             "차량 연결 정보를 저장할 수 없습니다."
         }
+    }
+    override fun confirmServerIdentity(vehicleId: String) {
+        val record=readRecord()
+        check(vehicleId.isNotBlank() && record.optString("vehicleId")==vehicleId) { "차량 연결 정보를 확인할 수 없습니다." }
+        if(CredentialServerPolicy.canMigrate(record.optString("server"),server,debug))writeRecord(record,confirmedMigration=true)
     }
     override fun guestInstallationKey(): String?=readRecord().optString("guestInstallationKey").takeIf {it.isNotBlank()}
     override fun saveGuestInstallationKey(value: String){writeRecord(readRecord().put("guestInstallationKey",value))}

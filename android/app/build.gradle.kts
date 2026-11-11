@@ -39,8 +39,9 @@ android {
         applicationId = "io.pickmeup.automotive"
         minSdk = 28
         targetSdk = 34
-        versionCode = 45
-        versionName = "0.3.42"
+        versionCode = 46
+        versionName = "0.3.43"
+        testInstrumentationRunner = "io.pickmeup.automotive.verification.ServerMigrationInstrumentation"
         buildConfigField("boolean","FILMING_MODE","false")
         buildConfigField("String","KAKAO_MAP_JS_KEY","\"$mapKey\"")
         buildConfigField("String","GLEO_CALLER_PACKAGE","\"$gleoPackage\"")
@@ -49,8 +50,9 @@ android {
     }
     buildTypes {
         getByName("debug") {
-            buildConfigField("String","KAKAO_MAP_ORIGIN","\"${mapOrigin(providers.gradleProperty("pickmeupMapOrigin").getOrElse("https://localhost:5173"))}\"")
-            val endpoint=providers.gradleProperty("pickmeupDebugApiBaseUrl").getOrElse("http://127.0.0.1:4310")
+            val endpoint=providers.gradleProperty("pickmeupDebugApiBaseUrl").getOrElse("https://pickmeup.calkok.uk/api")
+            val defaultOrigin=if(endpoint.startsWith("https://"))URI(endpoint).let {"${it.scheme}://${it.rawAuthority}"} else "https://localhost:5173"
+            buildConfigField("String","KAKAO_MAP_ORIGIN","\"${mapOrigin(providers.gradleProperty("pickmeupMapOrigin").getOrElse(defaultOrigin))}\"")
             require((endpoint.startsWith("https://") || endpoint=="http://127.0.0.1:4310") && !endpoint.contains('"'))
             buildConfigField("String","API_BASE_URL","\"$endpoint\"")
         }
@@ -75,6 +77,7 @@ android {
         java.srcDir("src/debug/java")
         res.srcDir("src/debug/res")
     }
+    testBuildType = providers.gradleProperty("pickmeupTestBuildType").getOrElse("debug")
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17

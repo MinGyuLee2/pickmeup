@@ -2,11 +2,11 @@
 
 차량에서 만날 장소와 상대를 선택해 길안내와 도착 알림을 시작하고, 상대는 문자 링크로 도착 시간과 차량 위치를 확인하는 픽업 서비스입니다.
 
-현재 차량 앱 버전은 **0.3.42**입니다. Android Automotive/Pleos 차량 앱, Fastify API, React 수신자 웹으로 구성됩니다.
+현재 차량 앱 버전은 **0.3.43**입니다. Android Automotive/Pleos 차량 앱, Fastify API, React 수신자 웹으로 구성됩니다.
 
 ## 공모전 제출 APK
 
-[이민규_픽미업_release.apk](apk/이민규_픽미업_release.apk) · 버전 0.3.42 / code 45 · 서명된 release
+[이민규_픽미업_release.apk](apk/이민규_픽미업_release.apk) · 버전 0.3.43 / code 46 · 서명된 release
 
 실행 방법, 테스트 환경, 서버 의존성과 검증 범위는 [APK 안내](apk/README.md)에 정리했습니다. 파일 무결성은 [SHA256SUMS](apk/SHA256SUMS)로 확인할 수 있습니다. 제출 APK에는 촬영용 가상 주행 재생기와 debug 제어 Receiver가 포함되지 않습니다.
 
@@ -64,6 +64,8 @@ API는 시작할 때 `api/migrations/`를 적용합니다. 기본 로컬 API 포
 cd android
 ./gradlew assembleDebug
 ```
+
+기본 debug도 AWS 배포 API를 사용합니다. 로컬 API 시험은 별도 AVD에서 `-PpickmeupDebugApiBaseUrl=http://127.0.0.1:4310 -PpickmeupMapOrigin=https://pickmeup.calkok.uk`로 빌드합니다. 기존 배포 주소의 연결 정보는 같은 차량 인증이 확인된 뒤 새 주소로 이전하며, 암호화된 이전 레코드도 보존합니다.
 
 Gleo 호출자 패키지·인증서와 지도 origin은 Gradle 속성으로 주입합니다. 배포용 서명과 API 주소는 `android/app/build.gradle.kts`의 release 검증 조건을 따릅니다.
 
