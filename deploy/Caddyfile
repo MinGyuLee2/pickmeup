@@ -7,6 +7,17 @@
 		X-Frame-Options "DENY"
 	}
 	@api path /api /api/*
+	handle /filming/* {
+		reverse_proxy {$FILMING_WEB_UPSTREAM:http://127.0.0.1:5199} {
+			header_up Host {upstream_hostport}
+			header_up ngrok-skip-browser-warning 1
+			flush_interval -1
+		}
+	}
+	handle /internal/filming-sms {
+		rewrite * /
+		reverse_proxy {$FILMING_SMS_UPSTREAM:127.0.0.1:4312}
+	}
 	handle @api {
 		uri strip_prefix /api
 		reverse_proxy api:4310 {

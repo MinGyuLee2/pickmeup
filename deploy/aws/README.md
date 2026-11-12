@@ -2,6 +2,25 @@
 
 Ubuntu 24.04 Lightsail 한 대에서 Caddy(HTTPS), API, PostgreSQL 17을 운영한다. 서버 요금제와 크레딧 적용 여부는 생성 전에 해당 AWS 계정에서 확인한다. 기존 `deploy/compose.yaml`의 SENS 구성은 별도로 유지한다.
 
+## 개발 주행의 실제 문자 연결
+
+기존 허용 IP와 SOLAPI 키를 유지하려면 `filming` 프로필의 문자 릴레이를 같은 서버에서 실행한다. `FILMING_PUBLIC_ORIGIN`은 현재 개발 웹의 HTTPS origin으로 지정한다. 기존 `APP_SECRET`에서 용도별 서명을 만들며, 키를 APK·웹이나 이미지에 포함하지 않는다. Caddy의 `/internal/filming-sms`는 서명·시간 검증을 통과한 요청만 처리하고, 문자 링크도 해당 origin의 `/filming/s`·`/filming/setup`으로 제한한다.
+
+릴레이는 `pickmeup_filming_delivery_v1` 스키마에 작업 ID·본문 지문·수신번호/링크의 용도별 HMAC 지문·공급자 결과만 남긴다. 운영 계정·차량·픽업 테이블은 사용하지 않는다. 작업 ID 중복 전송을 막으며, 전송 여부가 불확실한 요청은 자동 재전송하지 않는다. 명확한 일시 거절만 최대 3회 재시도하며 ETA 문구가 바뀌어도 수신번호와 링크는 바꿀 수 없다. 이전 버전의 원장 행은 같은 본문만 재시도할 수 있다. 개발 문자에는 시간당 20회 상한을 둔다. 호스트에 4312 포트를 공개하지 않는다.
+
+기존 비밀 마운트를 보존한 채 `filming-sms` 이미지만 빌드·시작하고, 새 Caddy 경로를 적용한 웹 이미지를 사용한다. 운영 API·worker를 재생성할 필요는 없다.
+
+```sh
+docker compose --env-file deploy.env -f deploy/aws/compose.yaml --profile filming build filming-sms web
+docker compose --env-file deploy.env -f deploy/aws/compose.yaml --profile filming up -d --no-deps filming-sms web
+```
+
+Mac의 비공개 `.local/filming-demo/sms.env`에는 `FILMING_SMS_MODE=solapi`와 `FILMING_SMS_RELAY_URL=https://기존서버/internal/filming-sms`만 설정한다. 계정 비밀은 기존 `.env`를 사용한다. `/health`에 `externalSms:true`가 확인되기 전에는 연결 완료로 보지 않는다. `scripts/filming-smoke.mjs`는 문자 확인을 요청하지 않아 실제 발송 없이 점검할 수 있다.
+
+개발 문자도 기존 서비스 주소로 직접 열려면 서버의 `FILMING_PUBLIC_ORIGIN`과 Mac의 `FILMING_PUBLIC_ORIGIN`을 같은 기존 서비스 HTTPS origin으로 지정하고, 서버의 `FILMING_WEB_UPSTREAM`은 기존 개발 터널 HTTPS origin으로 지정한다. `/filming/*`는 TLS를 유지한 채 기존 터널로 전달하며, [ngrok 공식 안내](https://ngrok.com/docs/pricing-limits/free-plan-limits#removing-the-interstitial-page)의 요청 헤더로 중간 안내를 표시하지 않는다. 새 문자에는 서비스 도메인이 들어가며, 이미 발송된 터널 주소 문자의 내용은 바뀌지 않는다.
+
+Mac은 이 서비스 origin에서 온 개발 API 요청의 Origin만 기존 내부 origin으로 정규화한다. 예전 터널 origin은 유지하고, 다른 origin은 그대로 API에 전달해 거부한다. 수신 토큰·인증코드·쿠키를 URL 리다이렉트로 전달하지 않으며, 운영 `/api` 경로에는 이 처리를 적용하지 않는다.
+
 ## 기존 설정과 데이터 준비
 
 프로젝트 루트에서 기존 Node 환경으로 실행한다. 서비스 키나 계정을 새로 만들지 않는다.

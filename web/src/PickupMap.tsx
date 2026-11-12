@@ -78,7 +78,7 @@ export function PickupMap({pickup,stale,onPickup,locationRequest=0}:{pickup:Pick
     function pin(point:{latitude:number;longitude:number},label:string,className:string) {
       const position=new maps.LatLng(point.latitude,point.longitude);
       const visual=className==='car-pin'?vehicleBadge(pickup.vehicle?.modelKey):null;
-      const signature=JSON.stringify([className,label,visual?.name,stale]);
+      const signature=JSON.stringify([className,label,visual?.name,visual?.image,stale]);
       const old=previous.get(className);previous.delete(className);
       if(old?.pmuSignature===signature){old.setPosition(position);bounds.extend(position);updated.push(old);return;}
       old?.setMap(null);const element=document.createElement('div');
@@ -99,7 +99,7 @@ export function PickupMap({pickup,stale,onPickup,locationRequest=0}:{pickup:Pick
         }
         element.append(document.createTextNode(label));
       }
-      const overlay=new maps.CustomOverlay({position,content:element,yAnchor:className==='car-pin'?1:1.1,zIndex:5});overlay.setMap(map);
+      const overlay=new maps.CustomOverlay({position,content:element,yAnchor:className==='car-pin'?.5:1.1,zIndex:5});overlay.setMap(map);
       overlay.pmuKind=className;overlay.pmuSignature=signature;bounds.extend(position);updated.push(overlay);
     }
     const waiting=pickup.waitingPoint?.location;

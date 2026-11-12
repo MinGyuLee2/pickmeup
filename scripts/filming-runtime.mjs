@@ -5,20 +5,39 @@ import {randomBytes,randomUUID} from 'node:crypto';
 import {execFile,spawn} from 'node:child_process';
 import {promisify} from 'node:util';
 import path from 'node:path';
-import {buildApp,endPickup} from '../api/dist/app.js';
+import {buildApp,endPickup,expirePickups} from '../api/dist/app.js';
+import {MessageWorker} from '../api/dist/message-worker.js';
+import {FilmingSmsSender} from '../api/dist/filming-sms.js';
 import {migrate,transaction} from '../api/dist/db.js';
 import {secrets} from '../api/dist/domain.js';
 import {splitRoute} from '../api/dist/planned-route.js';
+import {filmingPublicUrls} from './filming-public-url.mjs';
 
-// No SMS transport/worker is imported. Every database write is scoped to this marked schema.
+// Account and pickup writes remain scoped to this marked development schema.
 const schema='pickmeup_filming_v1',marker='PickMeUp isolated filming; synthetic recipients; no external SMS';
 const local=path.resolve('.local/filming-demo');
 const origin=new URL(process.env.PICKMEUP_PREVIEW_ORIGIN||process.env.PUBLIC_ORIGIN).origin;
+const publicUrls=filmingPublicUrls(origin,process.env.FILMING_PUBLIC_ORIGIN||origin);
 if(!process.env.APP_SECRET||!process.env.DATABASE_URL||!origin.startsWith('https://'))throw Error('Existing private runtime configuration required');
 const route=JSON.parse(await readFile('android/app/src/filming/assets/filming-route.json','utf8'));
 const last=route.path.at(-1),destination={longitude:last[0],latitude:last[1],name:route.name};
 const security=secrets(process.env.APP_SECRET),controlToken=randomBytes(24).toString('hex');
-function filmingLink(value){const link=new URL(value);link.pathname='/filming/s';return link.href;}
+const audioOnly=process.env.FILMING_AUDIO_ONLY==='1';
+const externalSms=process.env.FILMING_SMS_MODE==='solapi'&&!audioOnly;
+if(process.env.FILMING_SMS_MODE&&!['local','solapi'].includes(process.env.FILMING_SMS_MODE))throw Error('FILMING_SMS_MODE must be local or solapi');
+const relay=externalSms?new FilmingSmsSender(process.env.FILMING_SMS_RELAY_URL??'',process.env.APP_SECRET):null;
+const sender=relay?{
+    mode:'solapi',
+    send:async(payload,id)=>{
+        // Also scope a link prepared concurrently with an access-code renewal, before any paid send.
+        const link=payload.shareLink&&filmingLink(payload.shareLink);
+        return relay.send(link?{...payload,shareLink:link,message:payload.message.replaceAll(payload.shareLink,link)}:payload,id);
+    },
+    lookup:id=>relay.lookup(id),
+}:{
+    mode:'solapi',send:async()=>({kind:'simulated'}),lookup:async()=>({state:'UNKNOWN',code:'LOCAL_HAS_NO_RECEIPT'})};
+if(relay&&!await relay.health())throw Error('Existing SMS relay is not ready; real delivery was not enabled');
+function filmingLink(value){return publicUrls.link(value);}
 const admin=new pg.Pool({connectionString:process.env.DATABASE_URL});
 const existing=await admin.query('SELECT obj_description(oid,\'pg_namespace\') AS marker FROM pg_namespace WHERE nspname=$1',[schema]);
 if(existing.rowCount&&existing.rows[0].marker!==marker)throw Error('Refusing to reuse an unmarked schema');
@@ -27,6 +46,9 @@ await admin.query(`COMMENT ON SCHEMA ${schema} IS '${marker}'`);
 const pool=new pg.Pool({connectionString:process.env.DATABASE_URL,options:`-c search_path=${schema}`});
 if((await pool.query('SELECT current_schema() AS s')).rows[0].s!==schema)throw Error('Filming schema isolation failed');
 await migrate(pool);
+// Enabling real delivery never promotes old rehearsal jobs to paid messages.
+if(externalSms)await pool.query(`UPDATE message_jobs SET status='CANCELLED',protected_payload=NULL,last_error_code='BEFORE_REAL_SMS_ACTIVATION',updated_at=clock_timestamp() WHERE status='PENDING'`);
+const messageWorker=new MessageWorker(pool,process.env.APP_SECRET,sender);
 await pool.query("INSERT INTO contact_aliases(contact_id,alias) SELECT id,'지연' FROM contacts WHERE name='지연이' AND phone='01000000000' AND deleted_at IS NULL ON CONFLICT DO NOTHING");
 async function scopeFilmingLinks(){
     const rows=(await pool.query("SELECT id,recipient_link_ciphertext FROM pickups WHERE state IN ('ACTIVE','ARRIVED') AND recipient_link_ciphertext IS NOT NULL")).rows;
@@ -38,11 +60,6 @@ const app=buildApp(pool,{secret:process.env.APP_SECRET,publicOrigin:origin+'/fil
     const remaining=splitRoute(route.path,{longitude:p[0],latitude:p[1]})?.remaining;
     return new Response(JSON.stringify({routes:[{result_code:remaining?0:1,sections:remaining?[{roads:[{vertexes:remaining.flat()}]}]:[]}]}),{headers:{'content-type':'application/json'}});
 }});
-async function simulateMessages(){
-    await pool.query("UPDATE message_jobs SET provider='local' WHERE provider IS DISTINCT FROM 'local'");
-    await pool.query(`UPDATE message_jobs j SET status='SIMULATED',protected_payload=NULL,attempts=0,updated_at=now() FROM pickups p
-        WHERE j.pickup_id=p.id AND p.sms_confirmed AND p.state IN ('ACTIVE','ARRIVED') AND j.status='PENDING' AND j.available_at<=now()`);
-}
 app.addHook('onSend',async(request,reply,payload)=>{
     if(request.method==='POST'&&request.url.startsWith('/pickups')&&reply.statusCode<300)await scopeFilmingLinks();
     if(request.url==='/vehicles/guest'&&reply.statusCode<300&&typeof payload==='string'){
@@ -59,17 +76,22 @@ app.addHook('onSend',async(request,reply,payload)=>{
             await db.query('INSERT INTO contact_places(contact_id,destination) VALUES($1,$2) ON CONFLICT(contact_id) DO UPDATE SET destination=$2',[person.id,destination]);
         });
     }
-    // Owner callbacks always identify the local simulator, even before its next tick.
+    // The same truthful provider/status fields are used by the normal and development UI.
     if(typeof payload==='string'&&(payload.includes('"messages"')||request.url.includes('/share-message'))){
-        const value=JSON.parse(payload),pickup=value.pickup??value;
-        if(Array.isArray(pickup.messages))pickup.messages=pickup.messages.map(m=>({...m,provider:'local'}));
+        const value=JSON.parse(payload);
         if(value.shareLink){const before=value.shareLink;value.shareLink=filmingLink(before);if(typeof value.message==='string')value.message=value.message.replaceAll(before,value.shareLink);}
         payload=JSON.stringify(value);
     }
     return payload;
 });
 await app.listen({host:'127.0.0.1',port:4311});
-const timer=setInterval(()=>void simulateMessages().catch(()=>{}),500);timer.unref();
+let messageCycle=null;
+const timer=setInterval(()=>{
+    if(messageCycle)return;
+    messageCycle=(async()=>{await expirePickups(pool);if(!audioOnly)await messageWorker.runOnce();})()
+        .catch(()=>console.error('Development message cycle failed; delivery state is retained'))
+        .finally(()=>{messageCycle=null;});
+},1_000);timer.unref();
 const exec=promisify(execFile);
 async function adb(...args){return (await exec('scripts/with-env.sh',['adb','-e',...args],{maxBuffer:4_000_000,timeout:15000})).stdout;}
 async function filmingInstalled(){const value=await adb('shell','dumpsys','package','io.pickmeup.automotive');return /versionName=\S+-filming(?:\s|$)/.test(value);}
@@ -88,7 +110,7 @@ async function state(){
     let navigation=null,error='';try{navigation=await control('status');}catch(e){error=e.message;}
     const row=navigation?.pickupId?(await pool.query("SELECT * FROM pickups WHERE id=$1 AND state IN ('ACTIVE','ARRIVED')",[navigation.pickupId])).rows[0]:null;
     const link=row?.recipient_link_ciphertext?filmingLink(security.open(row.recipient_link_ciphertext)):null;
-    return {filming:true,externalSms:false,voice,navigation,error,pickup:row?{id:row.id,state:row.state,readiness:row.readiness,observation:row.latest_observation,waitingPoint:row.waiting_point}:null,
+    return {filming:true,externalSms,voice,navigation,error,pickup:row?{id:row.id,state:row.state,readiness:row.readiness,observation:row.latest_observation,waitingPoint:row.waiting_point}:null,
         recipientUrl:link,accessCode:row?.recipient_code_ciphertext?security.open(row.recipient_code_ciphertext):null};
 }
 const controls=await readFile('scripts/filming-controls.html','utf8');
@@ -98,7 +120,7 @@ const controller=http.createServer(async(req,res)=>{
     const u=new URL(req.url,'http://127.0.0.1:5187');
     try{
         if(req.headers.host!=='127.0.0.1:5187')return json({error:'Local control only'},403);
-        if(req.method==='GET'&&u.pathname==='/health')return json({filming:true,schemaIsolated:true,externalSms:false,ready},ready?200:503);
+        if(req.method==='GET'&&u.pathname==='/health')return json({filming:true,schemaIsolated:true,externalSms,audioOnly,ready},ready?200:503);
         if(req.method==='GET'&&u.pathname==='/') {res.writeHead(200,{'content-type':'text/html; charset=utf-8','cache-control':'no-store','referrer-policy':'no-referrer'});return res.end(controls.replace('__FILMING_CONTROL_TOKEN__',controlToken));}
         if(req.method==='GET'&&u.pathname==='/state')return json(await state());
         if(req.method!=='POST'||u.pathname!=='/command')return json({},404);
@@ -135,7 +157,7 @@ const web=http.createServer(async(req,res)=>{
     const u=new URL(req.url,origin);
     if(u.pathname.startsWith('/filming/api/')||u.pathname.startsWith('/api/')){
         const film=u.pathname.startsWith('/filming/api/'),base=film?'/filming/api':'/api';
-        const upstream=http.request('http://127.0.0.1:'+(film?4311:4310)+req.url.slice(base.length),{method:req.method,headers:req.headers},r=>{res.writeHead(r.statusCode,r.headers);r.pipe(res);});
+        const upstream=http.request('http://127.0.0.1:'+(film?4311:4310)+req.url.slice(base.length),{method:req.method,headers:film?publicUrls.headers(req.headers):req.headers},r=>{res.writeHead(r.statusCode,r.headers);r.pipe(res);});
         req.pipe(upstream);upstream.on('error',()=>{if(!res.headersSent)res.writeHead(502,{'content-type':'application/json'});res.end('{"message":"서버 연결을 확인해 주세요."}');});res.on('close',()=>upstream.destroy());return;
     }
     const film=u.pathname.startsWith('/filming/'),base=path.resolve(film?'.local/filming-demo/web':'web/dist');
@@ -158,9 +180,10 @@ await new Promise((resolve,reject)=>{web.once('error',reject);web.listen(5173,'1
 pids.web=process.pid;await writeFile('.local/public-runtime/pids.json',JSON.stringify(pids));
 await writeFile(path.join(local,'runtime.json'),JSON.stringify({pid:process.pid,schema,controlToken,origin,oldWebStopped}),{mode:0o600});
 ready=true;
-console.log('FILMING_READY localhost control 5187; isolated API 4311; normal routes preserved; external SMS transport absent');
+console.log('FILMING_READY localhost control 5187; isolated API 4311; normal routes preserved; SMS '+(externalSms?'SOLAPI via existing server':'LOCAL SIMULATION'));
 async function close(){
     if(closing)return;closing=true;clearInterval(timer);voiceProcess?.kill('SIGTERM');
+    await messageCycle;
     for(const s of sockets)s.destroy();web.close();controller.close();
     await transaction(pool,async db=>{for(const row of(await db.query("SELECT id FROM pickups WHERE state IN ('ACTIVE','ARRIVED') FOR UPDATE")).rows)await endPickup(db,row.id);});
     await app.close();await pool.end();await admin.end();

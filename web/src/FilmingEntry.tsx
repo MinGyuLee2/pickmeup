@@ -17,4 +17,4 @@ history.replaceState=(state,title,input)=>{
   if(input!=null){const url=new URL(input,location.href);if(url.origin===location.origin&&!url.pathname.startsWith(prefix+'/'))input=prefix+url.pathname+url.search+url.hash;}
   replace(state,title,input);
 };
-createRoot(document.getElementById('root')!).render(<><SharePage/><aside style={{position:'fixed',top:4,right:8,zIndex:30,fontSize:11,color:'#a4a7af',background:'#111214dd',padding:'2px 7px',borderRadius:6,pointerEvents:'none'}}>시연 · 가상 주행</aside></>);
+createRoot(document.getElementById('root')!).render(<SharePage/>);

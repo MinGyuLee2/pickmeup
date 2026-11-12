@@ -9,7 +9,7 @@ x-runtime: &runtime
   read_only: true
   tmpfs: [/tmp]
   cap_drop: [ALL]
-  security_opt: [no-new-privileges:true]
+  security_opt: ['no-new-privileges:true']
   environment: &environment
     NODE_ENV: production
     HOST: 0.0.0.0
@@ -81,11 +81,22 @@ services:
     restart: unless-stopped
     environment:
       PUBLIC_HOST: ${PUBLIC_HOST:?Set PUBLIC_HOST}
+      FILMING_SMS_UPSTREAM: filming-sms:4312
+      FILMING_WEB_UPSTREAM: ${FILMING_WEB_UPSTREAM:-http://127.0.0.1:5199}
     ports: ['80:80', '443:443', '443:443/udp']
     volumes: [caddy_data:/data, caddy_config:/config]
     depends_on:
       api: {condition: service_healthy}
     logging: *logging
+  filming-sms:
+    <<: *runtime
+    image: pickmeup-api:filming-sms
+    profiles: [filming]
+    command: [node, run.mjs, filming-sms]
+    environment:
+      <<: *environment
+      PORT: '4312'
+      FILMING_PUBLIC_ORIGIN: ${FILMING_PUBLIC_ORIGIN:-https://localhost.invalid}
 secrets:
   app_secret: {file: '${SECRETS_DIR:?Set SECRETS_DIR}/app_secret'}
   db_password: {file: '${SECRETS_DIR:?Set SECRETS_DIR}/db_password'}

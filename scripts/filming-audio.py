@@ -5,7 +5,7 @@ import subprocess,json
 
 root=Path(__file__).resolve().parent.parent
 folder=root/'.local/filming-demo/audio';folder.mkdir(parents=True,exist_ok=True)
-phrases={'start':'픽미업에서 지연이에게 현재 위치와 도착 시간을 공유해 줘.',
+phrases={'start':'픽미업에서 지연이에게 도착 시간을 공유해 줘.',
          'status':'픽미업에서 픽업 상태 알려줘.',
          'stop':'픽미업 공유를 종료해 줘.',
          'recipient':'저장된 이름은 지연입니다.'}

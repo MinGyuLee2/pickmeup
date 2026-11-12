@@ -18,7 +18,7 @@ export type SendResult=
 export type Receipt={state:'ACCEPTED'|'DELIVERED'|'FAILED'|'UNKNOWN';code?:string;messageId?:string};
 export interface SmsSender {
   readonly mode:SendingMode;
-  send(payload:SmsPayload):Promise<SendResult>;
+  send(payload:SmsPayload,dispatchId?:string):Promise<SendResult>;
   lookup(requestId:string):Promise<Receipt>;
 }
 export class LocalSmsSender implements SmsSender {

@@ -1,14 +1,18 @@
 #!/usr/bin/env python3
 """Rehearse through real Gleo ASR; never falls back to a debug Intent or enables a host mic."""
 from pathlib import Path
-import subprocess,sys,time,json,os,re,signal
+import subprocess,sys,time,json,os,re,signal,argparse
 
 def interrupted(_signum,_frame):raise SystemExit(130)
 signal.signal(signal.SIGTERM,interrupted)
 
 root=Path(__file__).resolve().parent.parent
 adb=[str(root/'scripts/with-env.sh'),'adb','-e']
-mode=sys.argv[1] if len(sys.argv)>1 else 'status'
+parser=argparse.ArgumentParser(description=__doc__)
+parser.add_argument('mode',nargs='?',default='status',choices=['start','status','stop','recipient'])
+parser.add_argument('--output-dir',type=Path,help='Separate private folder for a new take; existing rehearsal files are left alone')
+options=parser.parse_args()
+mode=options.mode
 files={k:'.local/filming-demo/audio/'+k+'.wav' for k in ['start','status','stop','recipient']}
 if mode not in files:raise SystemExit('Expected start, status, stop or recipient')
 package=subprocess.check_output(adb+['shell','dumpsys','package','io.pickmeup.automotive'],text=True)
@@ -16,7 +20,8 @@ if not re.search(r'versionName=\S+-filming(?:\s|$)',package):
     raise SystemExit('Refusing voice rehearsal: the isolated filming build is not installed')
 wav=root/files[mode]
 if not wav.exists():raise SystemExit('The existing synthetic command WAV is missing. Do not install new audio dependencies automatically.')
-folder=root/'.local/filming-demo';folder.mkdir(exist_ok=True)
+folder=options.output_dir.resolve() if options.output_dir else root/'.local/filming-demo'
+folder.mkdir(parents=True,exist_ok=True,mode=0o700)
 logpath=folder/('voice-'+mode+'.log')
 with os.fdopen(os.open(logpath,os.O_WRONLY|os.O_CREAT|os.O_TRUNC,0o600),'wb') as log:
     proc=subprocess.Popen(adb+['logcat','-T','1','-v','threadtime'],stdout=log,stderr=subprocess.DEVNULL)

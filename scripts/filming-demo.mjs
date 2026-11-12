@@ -32,7 +32,7 @@ if(command==='prepare'){
 }else if(command==='start'){
     try{const state=JSON.parse(await readFile(path.join(local,'runtime.json'),'utf8'));const response=await fetch('http://127.0.0.1:5187/health',{signal:AbortSignal.timeout(1000)});if(response.ok){console.log('Filming runtime already running: http://127.0.0.1:5187');process.exit(0);}}catch{}
     const log=await open(path.join(local,'runtime.log'),'a');
-    const child=spawn('scripts/with-env.sh',['node','--env-file=.env','--env-file-if-exists=.local/public-demo.env','scripts/filming-runtime.mjs'],{cwd:root,detached:true,stdio:['ignore',log.fd,log.fd]});child.unref();
+    const child=spawn('scripts/with-env.sh',['node','--env-file=.env','--env-file-if-exists=.local/public-demo.env','--env-file-if-exists=.local/filming-demo/sms.env','scripts/filming-runtime.mjs'],{cwd:root,detached:true,stdio:['ignore',log.fd,log.fd]});child.unref();
     for(let i=0;i<40;i++){await new Promise(r=>setTimeout(r,250));try{const res=await fetch('http://127.0.0.1:5187/health');if(res.ok){console.log('Filming controls: http://127.0.0.1:5187');process.exit(0);}}catch{}}
     throw Error('Runtime did not start. Inspect .local/filming-demo/runtime.log privately.');
 }else if(command==='stop'){

@@ -3,7 +3,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 if [ "$#" -ne 1 ]; then
   echo "Usage: $0 https://YOUR_PUBLIC_HOST/api"
-  echo "Set signing and approved Gleo caller environment variables first; see docs/DEPLOYMENT.md."
+  echo "Set signing and approved Gleo caller environment variables first; see README.md."
   exit 1
 fi
 : "${PICKMEUP_GLEO_CALLER_PACKAGE:?Set the approved Gleo caller package}"

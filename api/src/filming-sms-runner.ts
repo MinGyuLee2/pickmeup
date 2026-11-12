@@ -1,0 +1,20 @@
+import pg from 'pg';
+import {buildFilmingSmsRelay,FilmingSmsLedger} from './filming-sms.js';
+import {senderFromEnvironment} from './sms.js';
+
+const schema='pickmeup_filming_delivery_v1';
+const marker='PickMeUp authenticated development SMS delivery ledger';
+if(!process.env.DATABASE_URL||!process.env.APP_SECRET||!process.env.FILMING_PUBLIC_ORIGIN)throw Error('Existing private runtime configuration is required');
+const admin=new pg.Pool({connectionString:process.env.DATABASE_URL});
+const previous=(await admin.query("SELECT obj_description(oid,'pg_namespace') AS marker FROM pg_namespace WHERE nspname=$1",[schema])).rows[0];
+if(previous&&previous.marker!==marker)throw Error('Refusing to reuse an unrelated relay schema');
+await admin.query(`CREATE SCHEMA IF NOT EXISTS ${schema}`);
+await admin.query(`COMMENT ON SCHEMA ${schema} IS '${marker}'`);await admin.end();
+const pool=new pg.Pool({connectionString:process.env.DATABASE_URL,options:`-c search_path=${schema}`});
+if((await pool.query('SELECT current_schema() AS schema')).rows[0].schema!==schema)throw Error('Relay schema isolation failed');
+const ledger=new FilmingSmsLedger(pool,process.env.APP_SECRET);await ledger.initialize();
+const app=buildFilmingSmsRelay(ledger,senderFromEnvironment(process.env),process.env.APP_SECRET,process.env.FILMING_PUBLIC_ORIGIN);
+app.addHook('onClose',async()=>{await pool.end();});
+for(const signal of ['SIGINT','SIGTERM'])process.once(signal,()=>void app.close());
+await app.listen({host:process.env.HOST??'127.0.0.1',port:Number(process.env.PORT??4312)});
+console.log('Authenticated filming SMS relay ready; production account tables are not used');

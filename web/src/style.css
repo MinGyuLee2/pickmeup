@@ -61,6 +61,7 @@ input{width:100%;min-width:0;min-height:58px;border:1px solid var(--line);border
 .consent-dialog-content h2{font-size:26px;padding-right:36px}.consent-dialog-content>.muted{margin-top:10px}.consent-terms{margin-top:24px}.consent-terms summary{list-style:none;display:flex;align-items:center;justify-content:space-between;gap:12px;cursor:pointer;font-size:13px;padding:16px;background:var(--canvas);border:1px solid var(--line);border-radius:12px}.consent-terms summary::-webkit-details-marker{display:none}.consent-terms summary svg{flex-shrink:0;transform:rotate(90deg)}.consent-terms[open] summary svg{transform:rotate(-90deg)}.consent-terms .consent-details{margin:10px 0 12px}.consent-terms .consent-optional{padding:0 4px}.consent-checkbox{margin-top:20px}.sound-check{font-size:12px;padding:8px 0;min-height:36px;color:var(--secondary)}
 .arrival-sound-toast{position:fixed;top:max(16px,env(safe-area-inset-top));left:50%;transform:translateX(-50%);z-index:90;width:min(480px,calc(100% - 32px));display:flex;align-items:center;gap:12px;padding:16px;background:var(--surface);border:1px solid var(--action);border-radius:18px;box-shadow:0 12px 48px #0007}.arrival-sound-toast>div{flex:1}.arrival-sound-toast strong{color:var(--action);font-size:17px;font-weight:500}.arrival-sound-toast p{font-size:12px;line-height:1.65;color:var(--secondary);margin-top:4px}.arrival-sound-toast button{padding:8px;width:40px;min-height:40px;flex-shrink:0}
 .vehicle-marker-badge .generic-car{width:28px;height:28px;fill:none;stroke:#111214;stroke-width:1.7;stroke-linejoin:round;stroke-linecap:round}
+.vehicle-marker{width:48px;height:48px;padding:0}.vehicle-marker-badge{width:48px;height:48px;border:2px solid #111214;box-shadow:0 2px 7px #23324b44}.vehicle-marker-badge img{width:46px;height:34px;filter:none}.vehicle-marker-label,.vehicle-marker::after{display:none}
 .wordmark{color:var(--action);font-size:25px;font-weight:600;letter-spacing:-.045em;line-height:1.2;padding:6px 0}.wordmark:hover{color:#D7FF4D}@media(max-width:760px){.wordmark{font-size:23px}}
 
 .wordmark{font-weight:800;letter-spacing:-.04em}.arrival-sound-player{width:100%;height:40px;margin-top:12px}.sound-help{font-size:12px;color:var(--muted);margin-top:10px}.sound-help summary{cursor:pointer}
@@ -68,3 +69,6 @@ input{width:100%;min-width:0;min-height:58px;border:1px solid var(--line);border
 
 
 .readiness-message{min-height:24px;margin:16px 0;line-height:1.5}.readiness-buttons>button{width:100%;min-height:58px}
+
+/* Compact receiver notification controls; playback recovery stays available when needed. */
+.arrival-reminder .control-button{min-width:72px;padding:10px 14px}.arrival-reminder .sound-check{display:block;margin:6px 0 0 auto;min-height:36px;font-size:12px}.arrival-reminder .control-note{margin-top:6px}

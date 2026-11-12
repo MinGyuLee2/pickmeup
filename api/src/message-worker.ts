@@ -135,7 +135,7 @@ export class MessageWorker {
       const prepared=await this.prepare(db,job,owner,await this.clock(db));if(!prepared)return;
       await db.query('UPDATE message_jobs SET includes_near=$2 WHERE id=$1',[job.id,(job.kind==='START'||job.kind==='RESEND')&&prepared.near]);
       let result:SendResult;
-      try {result=await this.sender.send(prepared.payload);}
+      try {result=await this.sender.send(prepared.payload,job.id);}
       catch {result={kind:'unknown',code:'SENDER_UNCERTAIN'};}
       if(result.kind==='simulated') {
         await db.query(`UPDATE message_jobs SET status='SIMULATED',protected_payload=$2,dispatch_token=NULL,lease_expires_at=NULL,

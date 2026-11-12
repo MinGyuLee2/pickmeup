@@ -6,7 +6,7 @@ import {readFile,writeFile} from 'node:fs/promises';
 const runtime=JSON.parse(await readFile('.local/filming-demo/runtime.json','utf8'));
 assert.equal(runtime.schema,'pickmeup_filming_v1');
 const health=await(await fetch('http://127.0.0.1:5187/health')).json();
-assert(health.filming&&health.schemaIsolated&&health.externalSms===false);
+assert(health.filming&&health.schemaIsolated);
 const route=JSON.parse(await readFile('android/app/src/filming/assets/filming-route.json','utf8'));
 let key;try{key=await readFile('.local/filming-demo/smoke-installation','utf8');}catch{key=randomBytes(32).toString('hex');await writeFile('.local/filming-demo/smoke-installation',key,{mode:0o600});}
 let headers={};
@@ -23,9 +23,11 @@ const first=route.path[0],last=route.path.at(-1);
 const created=await api('/pickups','POST',{contactId:person.id,idempotencyKey:randomUUID(),destination:{name:route.name,latitude:last[1],longitude:last[0]},observation:{location:{latitude:first[1],longitude:first[0]},remainingSeconds:720,remainingMeters:1775,locationAgeMs:0,etaAgeMs:0}});
 const id=created.pickup.id;
 try{
+    assert.equal(created.pickup.smsConfirmed,false,'Smoke testing must never confirm a paid message');
+    assert(created.pickup.messages.every(message=>message.provider==='solapi'),'Owner status must not be rewritten as local simulation');
     const message=await api('/pickups/'+id+'/share-message');assert.equal(new URL(message.shareLink).pathname,'/filming/s');assert(message.message.includes('/filming/s#token='));
     const page=await fetch(message.shareLink.split('#')[0]);assert.equal(page.status,200);assert((await page.text()).includes('/filming/assets/'));
     const redeem=await fetch('http://127.0.0.1:4311/shares/redeem',{method:'POST',headers:{origin:runtime.origin,'content-type':'application/json'},body:JSON.stringify({token:new URL(message.shareLink).hash.slice(7),code:message.accessCode})});assert.equal(redeem.status,200);
     assert.equal((await fetch('http://127.0.0.1:4310/health')).status,200);
-    console.log('PASS: filming scope, existing recipient aliases, scoped link/message/bundle, recipient code gate, control authorization, and normal API availability. No SMS transport.');
+    console.log('PASS: filming scope, existing recipient aliases, scoped link/message/bundle, recipient code gate, control authorization, and normal API availability. SMS confirmation was not requested; no paid message.');
 }finally{await api('/pickups/'+id+'/end','POST',{reason:'DRIVER_ENDED'});}
